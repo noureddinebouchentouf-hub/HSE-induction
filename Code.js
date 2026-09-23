@@ -29,7 +29,7 @@ function doGet(e) {
   // Récupère l'email de l'utilisateur actif avec fallback sécurisé
   var email = getActiveUserEmail();
   
-  // Chargement du template Index.html
+  // Chargement du template index.html
   var template = HtmlService.createTemplateFromFile('Index');
   template.userEmail = email;
   template.logoDataUri = getHolcimLogoDataUri();
@@ -38,6 +38,51 @@ function doGet(e) {
     .setTitle('Safety School - Oggaz Plant')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+function doPost(e) {
+  try {
+    var payload = {};
+    var actionName = "";
+
+    if (e && e.parameter) {
+      actionName = e.parameter.action || "";
+      payload = e.parameter;
+    }
+
+    if (e && e.postData && e.postData.contents) {
+      try {
+        payload = JSON.parse(e.postData.contents);
+      } catch (jsonErr) {
+        payload = {};
+      }
+
+      if (e.parameter && e.parameter.action) {
+        actionName = e.parameter.action;
+      }
+    }
+
+    if (!actionName && payload.action) {
+      actionName = payload.action;
+    }
+
+    if (actionName === "saveVisitor") {
+      return ContentService.createTextOutput(JSON.stringify(saveVisitor(payload))).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (actionName === "saveEPIRequest") {
+      return ContentService.createTextOutput(JSON.stringify(saveEPIRequest(payload))).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (actionName === "getActiveUserEmail") {
+      return ContentService.createTextOutput(JSON.stringify({ success: true, email: getActiveUserEmail() })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({ success: false, message: "Action inconnue." })).setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    console.error("Erreur doPost: " + err.toString());
+    return ContentService.createTextOutput(JSON.stringify({ success: false, message: err.toString() })).setMimeType(ContentService.MimeType.JSON);
+  }
 }
 
 /**

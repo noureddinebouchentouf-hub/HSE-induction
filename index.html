@@ -107,7 +107,7 @@
             <div class="flex justify-between items-center w-full md:w-auto">
                 <!-- Logo Safety -->
                 <div class="flex-shrink-0 transition-transform duration-300 hover:scale-105">
-                    <img src="<?!= logoDataUri ?>" 
+                    <img src="./Holcim-Group-logo-PNG.png"
                          alt="Logo Holcim"
                          class="h-10 md:h-12 object-contain">
                 </div>
@@ -138,7 +138,7 @@
 
             <!-- Logo Holcim (Masqué sur mobile) -->
             <div class="hidden md:block flex-shrink-0 transition-transform duration-300 hover:scale-105">
-                <img src="<?!= logoDataUri ?>" 
+                <img src="./Holcim-Group-logo-PNG.png"
                      alt="Logo Holcim"
                      class="h-10 md:h-12 object-contain">
             </div>
@@ -691,7 +691,7 @@
     <footer class="bg-slate-950 text-white py-12 mt-auto border-t border-slate-900">
         <div class="container mx-auto px-4 text-center">
             <!-- Logo Holcim au footer -->
-            <img src="<?!= logoDataUri ?>" 
+            <img src="./Holcim-Group-logo-PNG.png"
                  alt="Logo Holcim Blanc"
                  class="h-8 mx-auto mb-6 brightness-200">
             <p class="text-slate-400 max-w-md mx-auto text-sm leading-relaxed" data-i18n="footer_text">
@@ -1380,6 +1380,8 @@
     <!-- LOGIQUE JAVASCRIPT ET ROUTING SPA -->
     <script>
         // ------------------ DÉCLARATION VARIABLES ------------------
+        const SITE_BASE_URL = 'https://YOUR_USERNAME.github.io/YOUR_REPO';
+        const SITE_LOGO_URL = `${SITE_BASE_URL}/Holcim-Group-logo-PNG.png`;
         let userEmail = "";
 
         function applyUserEmailToFields() {
@@ -1390,8 +1392,8 @@
             const emailDisplay = document.getElementById('current-user-email');
 
             if (emailDisplay) {
-                emailDisplay.textContent = userEmail || "Sign in with Google";
-                emailDisplay.title = userEmail || "Google sign-in is required";
+                emailDisplay.textContent = userEmail || "Email";
+                emailDisplay.title = userEmail || "Email contact";
             }
 
             emailInputs.forEach((input) => {
@@ -1401,23 +1403,46 @@
             });
         }
 
-        function loadUserEmail() {
-            if (typeof google === 'undefined' || !google.script || !google.script.run) {
-                const emailDisplay = document.getElementById('current-user-email');
-                if (emailDisplay) emailDisplay.textContent = "Sign in with Google";
-                return;
+        const SUPABASE_URL = 'https://YOUR_PROJECT_URL.supabase.co';
+        const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+
+        async function requestBackend(functionName, payload) {
+            const response = await fetch(`${SUPABASE_URL}/functions/v1/${functionName}`, {
+                method: 'POST',
+                mode: 'cors',
+                cache: 'no-store',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'apikey': SUPABASE_ANON_KEY,
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                },
+                body: JSON.stringify(payload || {})
+            });
+
+            const text = await response.text();
+            let result = {};
+            try {
+                result = text ? JSON.parse(text) : {};
+            } catch (error) {
+                result = { success: false, message: text || 'Erreur inconnue du serveur.' };
             }
 
-            google.script.run
-                .withSuccessHandler((email) => {
-                    userEmail = email || "";
-                    applyUserEmailToFields();
-                })
-                .withFailureHandler(() => {
-                    userEmail = "";
-                    applyUserEmailToFields();
-                })
-                .getActiveUserEmail();
+            if (!response.ok || result.success === false) {
+                throw new Error(result.message || 'La requête a échoué.');
+            }
+
+            return result;
+        }
+
+        function loadUserEmail() {
+            const emailDisplay = document.getElementById('current-user-email');
+            if (emailDisplay) emailDisplay.textContent = 'Email';
+            if (!userEmail) {
+                document.querySelectorAll('input[type="email"]').forEach(el => {
+                    if (!el.value) el.value = '';
+                });
+            }
         }
 
         // ------------------ NAVIGATION RESPONSIVE MOBILE ------------------
@@ -1611,7 +1636,7 @@
         loadUserEmail();
 
         // ------------------ SOUMISSION FORMULAIRES ------------------
-        function submitVisitorForm(e) {
+        async function submitVisitorForm(e) {
             e.preventDefault();
             if (!isSigned) {
                 alert(currentLang === 'en' ? "Please provide a digital signature before saving." : 
@@ -1620,69 +1645,56 @@
                         (currentLang === 'es' ? "Por favor firmar antes de registrar." : "请在注册前进行数字签名。"))));
                 return;
             }
-            
+
             const btn = document.getElementById('vis-submit-btn');
             const spinner = document.getElementById('vis-spinner');
             const successMsg = document.getElementById('vis-success');
-            
+
             btn.disabled = true;
             spinner.classList.remove('hidden');
             successMsg.classList.add('hidden');
-            
+
             const signatureData = canvas.toDataURL('image/png');
-            
+
             const formData = {
-                nom: document.getElementById('vis-nom').value,
-                adresse: document.getElementById('vis-adresse').value,
+                full_name: document.getElementById('vis-nom').value,
+                address: document.getElementById('vis-adresse').value,
                 email: document.getElementById('vis-email').value,
-                arrivee: document.getElementById('vis-arrivee').value,
-                depart: document.getElementById('vis-depart').value,
-                motif: document.getElementById('vis-motif').value,
-                motifDetails: document.getElementById('vis-motif-details').value,
-                signature: signatureData
+                arrival_at: document.getElementById('vis-arrivee').value,
+                departure_at: document.getElementById('vis-depart').value,
+                visit_reason: document.getElementById('vis-motif').value,
+                visit_reason_details: document.getElementById('vis-motif-details').value,
+                signature_base64: signatureData
             };
-            
-            if (typeof google !== 'undefined' && google.script && google.script.run) {
-                google.script.run
-                    .withSuccessHandler((response) => {
-                        spinner.classList.add('hidden');
-                        successMsg.classList.remove('hidden');
-                        document.getElementById('visitor-form').reset();
-                        document.getElementById('vis-email').value = userEmail;
-                        clearSignature();
-                        btn.disabled = false;
-                        window.scrollTo({ top: successMsg.offsetTop - 100, behavior: 'smooth' });
-                    })
-                    .withFailureHandler((err) => {
-                        alert("Server Error : " + err);
-                        spinner.classList.add('hidden');
-                        btn.disabled = false;
-                    })
-                    .saveVisitor(formData);
-            } else {
-                // Simulation locale
-                setTimeout(() => {
-                    spinner.classList.add('hidden');
-                    successMsg.classList.remove('hidden');
-                    document.getElementById('visitor-form').reset();
-                    document.getElementById('vis-email').value = userEmail;
-                    clearSignature();
-                    btn.disabled = false;
-                    window.scrollTo({ top: successMsg.offsetTop - 100, behavior: 'smooth' });
-                }, 1200);
+
+            try {
+                const response = await requestBackend('submit-visitor', formData);
+                spinner.classList.add('hidden');
+                successMsg.classList.remove('hidden');
+                document.getElementById('visitor-form').reset();
+                document.getElementById('vis-email').value = userEmail;
+                clearSignature();
+                btn.disabled = false;
+                window.scrollTo({ top: successMsg.offsetTop - 100, behavior: 'smooth' });
+                return response;
+            } catch (err) {
+                alert('Erreur : ' + (err && err.message ? err.message : err));
+                spinner.classList.add('hidden');
+                btn.disabled = false;
+                return null;
             }
         }
 
-        function submitEPIForm(e) {
+        async function submitEPIForm(e) {
             e.preventDefault();
             const btn = document.getElementById('epi-submit-btn');
             const spinner = document.getElementById('epi-spinner');
             const successMsg = document.getElementById('epi-success');
-            
+
             btn.disabled = true;
             spinner.classList.remove('hidden');
             successMsg.classList.add('hidden');
-            
+
             const selectedEquipments = [];
             if (document.getElementById('req-helmet').checked) selectedEquipments.push({ item: 'Helmet' });
             if (document.getElementById('req-shoes').checked) {
@@ -1694,7 +1706,7 @@
             if (document.getElementById('req-glasses').checked) selectedEquipments.push({ item: 'Safety Glasses' });
             if (document.getElementById('req-noise').checked) selectedEquipments.push({ item: 'Hearing Protection (Stop Bruit)' });
             if (document.getElementById('req-mask').checked) selectedEquipments.push({ item: 'Dust Mask' });
-            
+
             if (selectedEquipments.length === 0) {
                 alert(currentLang === 'en' ? "Please select at least one PPE item." : 
                       (currentLang === 'fr' ? "Veuillez sélectionner au moins un EPI." : 
@@ -1704,45 +1716,31 @@
                 btn.disabled = false;
                 return;
             }
-            
+
             const formData = {
-                nom: document.getElementById('req-nom').value,
-                societe: document.getElementById('req-societe').value,
+                full_name: document.getElementById('req-nom').value,
+                company: document.getElementById('req-societe').value,
                 email: document.getElementById('req-email').value,
-                dateRetrait: document.getElementById('req-date-retrait').value,
-                equipments: selectedEquipments
+                pickup_date: document.getElementById('req-date-retrait').value,
+                equipment: selectedEquipments
             };
-            
-            if (typeof google !== 'undefined' && google.script && google.script.run) {
-                google.script.run
-                    .withSuccessHandler((response) => {
-                        spinner.classList.add('hidden');
-                        successMsg.classList.remove('hidden');
-                        document.getElementById('epi-request-form').reset();
-                        document.getElementById('req-email').value = userEmail;
-                        document.getElementById('size-select-shoes-wrapper').classList.add('hidden');
-                        document.getElementById('size-select-vest-wrapper').classList.add('hidden');
-                        btn.disabled = false;
-                        window.scrollTo({ top: successMsg.offsetTop - 100, behavior: 'smooth' });
-                    })
-                    .withFailureHandler((err) => {
-                        alert("Server Error : " + err);
-                        spinner.classList.add('hidden');
-                        btn.disabled = false;
-                    })
-                    .saveEPIRequest(formData);
-            } else {
-                // Simulation locale
-                setTimeout(() => {
-                    spinner.classList.add('hidden');
-                    successMsg.classList.remove('hidden');
-                    document.getElementById('epi-request-form').reset();
-                    document.getElementById('req-email').value = userEmail;
-                    document.getElementById('size-select-shoes-wrapper').classList.add('hidden');
-                    document.getElementById('size-select-vest-wrapper').classList.add('hidden');
-                    btn.disabled = false;
-                    window.scrollTo({ top: successMsg.offsetTop - 100, behavior: 'smooth' });
-                }, 1200);
+
+            try {
+                const response = await requestBackend('submit-epi', formData);
+                spinner.classList.add('hidden');
+                successMsg.classList.remove('hidden');
+                document.getElementById('epi-request-form').reset();
+                document.getElementById('req-email').value = userEmail;
+                document.getElementById('size-select-shoes-wrapper').classList.add('hidden');
+                document.getElementById('size-select-vest-wrapper').classList.add('hidden');
+                btn.disabled = false;
+                window.scrollTo({ top: successMsg.offsetTop - 100, behavior: 'smooth' });
+                return response;
+            } catch (err) {
+                alert('Erreur : ' + (err && err.message ? err.message : err));
+                spinner.classList.add('hidden');
+                btn.disabled = false;
+                return null;
             }
         }
 
