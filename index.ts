@@ -2,7 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const supabase = createClient(
   Deno.env.get("https://dlarqdsxsswdnpnloaks.supabase.co/rest/v1/")!,
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  Deno.env.get("sb_publishable_ck_D0aIzi2dUg7YrJbNZxQ_6yEszCjq")!
 );
 
 Deno.serve(async (req) => {
